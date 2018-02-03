@@ -2,7 +2,11 @@
 console.log("[OpenSkin] Loading application \"" + openskin + "\"");
 
 function sanLite(str) {
-  str = String(str).replace(/undefined|nil|null|\<|\>/g,"");
+  str = String(str).replace(/undefined|nil|null|\<|\>|\{|\}/g,"");
+  return str;
+}
+function sanCustom(str) {
+  str = String(str).replace(/undefined|nil|null/g,"");
   return str;
 }
 
@@ -11,35 +15,47 @@ var OpenSkin_jsonAppName = openskin;
 function OpenSkin() {
   this.application = openskin
 
-  // default: remote JSON file [requires JQuery]
-  this.get = function(url) {
-    this.json = OpenSkin_jsonContents;
-      $.getJSON(url, function(json) {
-        OpenSkin_jsonContents = json;
-        return json;
-      });
-      return OpenSkin_jsonContents;
-   }
+  // default: remote JSON file
+  this.get = function(url, loadAfter) {
+    var request = new XMLHttpRequest();
+    request.open('GET', url, true);
+    request.send();
+    request.onload = function() {
+        request.onerror = function() {
+            throw "Invalid URL."
+        }
+        if (request.status >= 200 && request.status < 400) {
+            OpenSkin_jsonContents = JSON.parse(request.responseText);
+        } else {
+            throw "Can't access data."
+        }
+        if(loadAfter == true) {
+            OpenSkin.load()
+        }
+        return OpenSkin_jsonContents;
+        }
+    }
+    
   
-  // import via remote JSON file [requires JQuery]
-  this.getJSON = function(url) {
-    this.json = OpenSkin_jsonContents;
-      $.getJSON(url, function(json) {
-        OpenSkin_jsonContents = json;
-        return json;
-      });
-      return OpenSkin_jsonContents;
-   }
-   
-   // import via local string
-   this.getStr = function(str) {
-    OpenSkin_jsonContents = JSON.parse(str);
-    return OpenSkin_jsonContents;
-   }
-   
+   // import via remote JSON file
+   // duplicate of this.get so removing!
+    this.getJSON = function(url, loadAfter) { 
+        this.get(url, loadAfter);
+        return OpenSkin_jsonContents;
+    }
+   this.getStr = function(str, loadAfter) {
+     OpenSkin_jsonContents = JSON.parse(str);
+     if(loadAfter == true) {
+        this.load()
+     }
+     return OpenSkin_jsonContents;
+    }
    // import via object
-   this.getObj = function(str) {
+   this.getObj = function(str, loadAfter) {
     OpenSkin_jsonContents = str;
+    if(loadAfter == true) {
+        this.load()
+    }
     return OpenSkin_jsonContents;
    }
 
@@ -96,10 +112,8 @@ function OpenSkin() {
 
     // Custom CSS
     try {
-      element += jsonContents.styles[0].custom[0][jsonAppName]
-    } catch(n) {
-      //
-    }
+      element += sanCustom(OpenSkin_jsonContents.styles[0].custom[0][OpenSkin_jsonAppName])
+    } catch(n) {}
 
     if(document.getElementById("openskin_stylesheet")) {
       document.getElementById("openskin_stylesheet").innerHTML = element;
@@ -113,7 +127,8 @@ function OpenSkin() {
     return true
   }
   this.skin = function(url) {
-    return OpenSkin_jsonContents;
+      return OpenSkin_jsonContents;
   }
 }
-var OpenSkin = new OpenSkin()
+
+var OpenSkin = new OpenSkin();
